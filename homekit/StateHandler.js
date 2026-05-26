@@ -125,7 +125,6 @@ export default (device, platform) => {
 	// TODO: setTimeoutDelay should probably be set in index.js
 	const setTimeoutDelay = 1000
 	let setTimer = null
-	let preventTurningOff = false
 	const sensiboApi = platform.sensiboApi
 	const log = platform.log
 
@@ -313,22 +312,9 @@ export default (device, platform) => {
 			// TODO: check if this should be set earlier
 			platform.setProcessing = true
 
-			// Make sure device is not turning off when setting fanSpeed to 0 (AUTO)
-			// FIXME: check on issue / race condition that prevents AC turning off if the previous command was to set fan to 0% (auto)
-			if (prop === 'fanSpeed' && value === 0 && device.capabilities[state.mode].autoFanSpeed) {
-				preventTurningOff = true
-			}
-
 			clearTimeout(setTimer)
 			// TODO: check if "function () {" below could/should be an arrow function
 			setTimer = setTimeout(async function () {
-				// Make sure device is not turning off when setting fanSpeed to 0 (AUTO)
-				if (preventTurningOff && state.active === false) {
-					log.easyDebug(`${device.name} - StateHandler - Auto fan speed, don't turn off when fanSpeed set to 0%. Prop: ${prop}, Value: ${value}`)
-					state.active = true
-					preventTurningOff = false
-				}
-
 				const sensiboNewACState = sensiboFormattedACState(device, state)
 
 				log.easyDebug(`${device.name} - before calling API to set new state`)

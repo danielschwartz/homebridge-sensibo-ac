@@ -11,18 +11,25 @@ function fanLevelToPercentPrivate(currentLevel, fanLevels) {
 	logPrivate.easyDebug(`${deviceNamePrivate} - Utils fanLevelToPercentPrivate - start, currentLevel: ${currentLevel}`)
 
 	if (currentLevel === 'auto') {
-		logPrivate.easyDebug(`${deviceNamePrivate} - Utils fanLevelToPercentPrivate - end, percentage: 0 (auto)`)
+		logPrivate.easyDebug(`${deviceNamePrivate} - Utils fanLevelToPercentPrivate - end, percentage: 100 (auto)`)
 
-		return 0
+		return 100
 	}
 
 	fanLevels = fanLevels.filter(level => {
-		return level !== 'auto'
+		return level !== 'auto' && level !== 'strong'
 	})
+
+	// 'strong' is no longer mapped, but a device may still report it - treat it as the top real level
+	if (currentLevel === 'strong') {
+		logPrivate.easyDebug(`${deviceNamePrivate} - Utils fanLevelToPercentPrivate - end, percentage: 99 (strong)`)
+
+		return 99
+	}
 
 	const totalLevels = fanLevels.length > 0 ? fanLevels.length : 1
 	const levelIndex = fanLevels.indexOf(currentLevel) + 1
-	const percentage = Math.round(100 * levelIndex / totalLevels)
+	const percentage = Math.round(99 * levelIndex / totalLevels)
 
 	logPrivate.easyDebug(`${deviceNamePrivate} - Utils fanLevelToPercentPrivate - end, percentage: ${percentage}`)
 
@@ -598,23 +605,32 @@ export default (device, platform) => {
 		 * @returns {string}                  The single fan level that matches the percentage from Homekit
 		 */
 		percentToFanLevel: (percentValue, fanLevels) => {
-			let selected = 'auto'
+			const hasAuto = fanLevels.includes('auto')
+			// 'strong' is intentionally never sent; the remaining levels are spread across 0-99 and 'auto' sits at 100
+			const realLevels = fanLevels.filter(level => {
+				return level !== 'auto' && level !== 'strong'
+			})
+			let selected
 
-			if (!fanLevels.includes('auto')) {
-				selected = fanLevels[0]
-			}
+			if (percentValue === 100 && hasAuto) {
+				selected = 'auto'
+			} else if (percentValue === 0) {
+				selected = realLevels[0] || (hasAuto ? 'auto' : fanLevels[0])
+			} else {
+				const totalLevels = realLevels.length
 
-			if (percentValue !== 0) {
-				fanLevels = fanLevels.filter(level => {
-					return level !== 'auto'
-				})
-				const totalLevels = fanLevels.length
+				// default to the top real level (covers 100% on a device without 'auto')
+				selected = realLevels[totalLevels - 1]
 
-				for (let i = 0; i < fanLevels.length; i++) {
-					if (percentValue <= Math.round(100 * (i + 1) / totalLevels)) {
-						selected = fanLevels[i]
+				for (let i = 0; i < totalLevels; i++) {
+					if (percentValue <= Math.round(99 * (i + 1) / totalLevels)) {
+						selected = realLevels[i]
 						break
 					}
+				}
+
+				if (typeof selected === 'undefined') {
+					selected = hasAuto ? 'auto' : fanLevels[0]
 				}
 			}
 

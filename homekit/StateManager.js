@@ -16,6 +16,12 @@ function characteristicToMode(characteristic) {
 	}
 }
 
+function characteristicToModeForDevice(characteristic, device) {
+	const mode = characteristicToMode(characteristic)
+
+	return (device.autoToDry && mode === 'AUTO') ? 'DRY' : mode
+}
+
 /**
  * Updates device.state.smartMode with a new ClimateReact state, should be called whenever a (relevant) change is made to the accessory.
  * Note: Currently only works for AC (Auto, Cool, Heat) as Dry and Fan are separate accessories.
@@ -144,7 +150,9 @@ export default (device, platform) => {
 
 				log.easyDebug(device.name, '(GET) - Current HeaterCooler State:', active ? stateCurrentMode + ' (' + deviceCurrentModeValue + ')' : 'OFF')
 
-				if (!active || stateCurrentMode === 'FAN' || stateCurrentMode === 'DRY') {
+				if (device.autoToDry && stateCurrentMode === 'DRY' && active) {
+					callback(null, Characteristic.CurrentHeaterCoolerState.COOLING)
+				} else if (!active || stateCurrentMode === 'FAN' || stateCurrentMode === 'DRY') {
 					callback(null, Characteristic.CurrentHeaterCoolerState.INACTIVE)
 				} else if (stateCurrentMode === 'COOL') {
 					callback(null, Characteristic.CurrentHeaterCoolerState.COOLING)
@@ -164,7 +172,9 @@ export default (device, platform) => {
 				const stateCurrentModeValue = stateCurrentMode ? Characteristic.TargetHeaterCoolerState[stateCurrentMode] ??= deviceCurrentModeValue : deviceCurrentModeValue
 
 				log.easyDebug(device.name, '(GET) - Target HeaterCooler State:', active ? stateCurrentMode + ' (' + stateCurrentModeValue + ')' : 'OFF (' + stateCurrentModeValue + ')')
-				if (!active || stateCurrentMode === 'FAN' || stateCurrentMode === 'DRY') {
+				if (device.autoToDry && stateCurrentMode === 'DRY' && active) {
+					callback(null, Characteristic.TargetHeaterCoolerState.AUTO)
+				} else if (!active || stateCurrentMode === 'FAN' || stateCurrentMode === 'DRY') {
 					callback(null, deviceCurrentModeValue)
 				} else {
 					callback(null, stateCurrentModeValue)
@@ -490,11 +500,11 @@ export default (device, platform) => {
 				if (acActive) {
 					device.state.active = true
 					const lastModeValue = device.HeaterCoolerService.getCharacteristic(Characteristic.TargetHeaterCoolerState).value
-					const lastMode = characteristicToMode(lastModeValue)
+					const lastMode = characteristicToModeForDevice(lastModeValue, device)
 
 					log.easyDebug(device.name, '(SET) - HeaterCooler State:', lastMode, '(' + lastModeValue + ')')
 					device.state.mode = lastMode
-				} else if (device.state.mode === 'COOL' || device.state.mode === 'HEAT' || device.state.mode === 'AUTO') {
+				} else if (device.state.mode === 'COOL' || device.state.mode === 'HEAT' || device.state.mode === 'AUTO' || (device.autoToDry && device.state.mode === 'DRY')) {
 					device.state.active = false
 				}
 
@@ -504,7 +514,7 @@ export default (device, platform) => {
 			},
 
 			TargetHeaterCoolerState: (state, callback) => {
-				const mode = characteristicToMode(state)
+				const mode = characteristicToModeForDevice(state, device)
 
 				log.easyDebug(device.name, '(SET) - Target HeaterCooler State:', mode, '(' + state + ')')
 				device.state.mode = mode
@@ -523,7 +533,7 @@ export default (device, platform) => {
 				}
 
 				const lastModeValue = device.HeaterCoolerService.getCharacteristic(Characteristic.TargetHeaterCoolerState).value
-				const lastMode = characteristicToMode(lastModeValue)
+				const lastMode = characteristicToModeForDevice(lastModeValue, device)
 
 				device.state.targetTemperature = targetTemp
 				// TODO: Check on the below. It turns the unit ON if it's currently off. Maybe it's required by API?
@@ -544,7 +554,7 @@ export default (device, platform) => {
 				}
 
 				const lastModeValue = device.HeaterCoolerService.getCharacteristic(Characteristic.TargetHeaterCoolerState).value
-				const lastMode = characteristicToMode(lastModeValue)
+				const lastMode = characteristicToModeForDevice(lastModeValue, device)
 
 				device.state.targetTemperature = targetTemp
 				// TODO: Check on the below. It turns the unit ON if it's currently off. Maybe it's required by API?
@@ -563,7 +573,7 @@ export default (device, platform) => {
 				device.state.verticalSwing = state
 
 				const lastModeValue = device.HeaterCoolerService.getCharacteristic(Characteristic.TargetHeaterCoolerState).value
-				const lastMode = characteristicToMode(lastModeValue)
+				const lastMode = characteristicToModeForDevice(lastModeValue, device)
 
 				// TODO: Check on the below. It turns the unit ON if it's currently off. Maybe it's required by API?
 				log.easyDebug(device.name, '(SET) - HeaterCooler State:', lastMode, '(' + lastModeValue + ')')
@@ -580,7 +590,7 @@ export default (device, platform) => {
 				device.state.fanSpeed = speed
 
 				const lastModeValue = device.HeaterCoolerService.getCharacteristic(Characteristic.TargetHeaterCoolerState).value
-				const lastMode = characteristicToMode(lastModeValue)
+				const lastMode = characteristicToModeForDevice(lastModeValue, device)
 
 				// TODO: Check on the below. It turns the unit ON if it's currently off. Maybe it's required by API?
 				log.easyDebug(device.name, '(SET) - HeaterCooler State:', lastMode, '(' + lastModeValue + ')')
@@ -742,7 +752,7 @@ export default (device, platform) => {
 				// log.warn(device.name, 'in HorizontalSwing, mode:', device.state.mode, 'active:', device.state.active)
 
 				const lastModeValue = device.HeaterCoolerService.getCharacteristic(Characteristic.TargetHeaterCoolerState).value
-				const lastMode = characteristicToMode(lastModeValue)
+				const lastMode = characteristicToModeForDevice(lastModeValue, device)
 
 				// TODO: Check on the below. It turns the unit ON if it's currently OFF. Maybe it's required by API?
 				log.easyDebug(device.name, '(SET) - HeaterCooler State (HorizontalSwing):', lastMode, '(' + lastModeValue + ')')

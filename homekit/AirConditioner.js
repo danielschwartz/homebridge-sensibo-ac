@@ -47,6 +47,11 @@ class AirConditioner {
 
 		this.capabilities = this.Utils.airConditionerCapabilities(device.remoteCapabilities.modes)
 
+		this.autoToDry = platform.autoToDry && !!this.capabilities.DRY && !this.modesToExclude.includes('DRY')
+		if (platform.autoToDry && !this.autoToDry) {
+			this.log.warn(`${this.name} - autoToDry enabled but device has no usable DRY mode; ignoring`)
+		}
+
 		this.state = this.cachedState.devices[this.id] = this.Utils.airConditionerStateFromDevice(device)
 		this.state = new Proxy(this.state, StateHandler(this, platform))
 		this.stateManager = StateManager(this, platform)
@@ -107,7 +112,7 @@ class AirConditioner {
 			this.removeFanService()
 		}
 
-		if (!this.disableDry && this.capabilities.DRY && !this.modesToExclude.includes('DRY')) {
+		if (!this.autoToDry && !this.disableDry && this.capabilities.DRY && !this.modesToExclude.includes('DRY')) {
 			this.addDryService()
 		} else {
 			this.removeDryService()
