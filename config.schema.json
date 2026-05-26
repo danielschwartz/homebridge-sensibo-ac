@@ -69,6 +69,13 @@
 				"default": false,
 				"required": false
 			},
+			"autoToDry": {
+				"title": "Map Auto to Dry",
+				"description": "When enabled, selecting AUTO on the thermostat sets the AC to Dry (dehumidify) mode, and the separate dehumidifier accessory is not created. Requires a device that supports Dry mode.",
+				"type": "boolean",
+				"default": false,
+				"required": false
+			},
 			"carbonDioxideAlertThreshold": {
 				"title": "Carbon Dioxide (CO2) Alert Threshold",
 				"description": "Value, in PPM, over which the Apple Home app will alert you to high CO2 readings.  Default is 1500. Requires the Carbon Dioxide Sensor be enabled and a compatible device",
