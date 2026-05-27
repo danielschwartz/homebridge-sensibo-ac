@@ -22,6 +22,19 @@ function characteristicToModeForDevice(characteristic, device) {
 	return (device.autoToDry && mode === 'AUTO') ? 'DRY' : mode
 }
 
+// The Fan accessory acts as a fan-speed control for the current mode rather than switching the
+// unit into FAN mode. If the unit is off (or in a non-running mode like DRY) we fall back to the
+// last HeaterCooler mode so turning the fan on resumes heat/cool/auto instead of forcing FAN.
+function keepOrRestoreRunningMode(device) {
+	if (['COOL', 'HEAT', 'AUTO', 'FAN'].includes(device.state.mode)) {
+		return
+	}
+
+	const lastModeValue = device.HeaterCoolerService.getCharacteristic(Characteristic.TargetHeaterCoolerState).value
+
+	device.state.mode = characteristicToModeForDevice(lastModeValue, device)
+}
+
 /**
  * Updates device.state.smartMode with a new ClimateReact state, should be called whenever a (relevant) change is made to the accessory.
  * Note: Currently only works for AC (Auto, Cool, Heat) as Dry and Fan are separate accessories.
@@ -300,7 +313,9 @@ export default (device, platform) => {
 				const active = device.state.active
 				const mode = device.state.mode
 
-				if (!active || mode !== 'FAN') {
+				// On whenever the unit is running in a mode that moves air, so HomeKit keeps the
+				// fan-speed slider usable (DRY has its own dehumidifier accessory).
+				if (!active || mode === 'DRY') {
 					log.easyDebug(device.name, '(GET) - Fan Active State: false')
 
 					callback(null, 0)
@@ -649,14 +664,14 @@ export default (device, platform) => {
 
 			// FAN
 			FanActive: (state, callback) => {
-				state = !!state
-				log.easyDebug(device.name, '(SET) - Fan state Active:', state)
+				const fanActive = !!state
 
-				if (state) {
-					log.easyDebug(device.name, '(SET) - Mode to: FAN')
-					device.state.mode = 'FAN'
+				log.easyDebug(device.name, '(SET) - Fan state Active:', fanActive)
+
+				if (fanActive) {
 					device.state.active = true
-				} else if (device.state.mode === 'FAN') {
+					keepOrRestoreRunningMode(device)
+				} else {
 					device.state.active = false
 				}
 
@@ -668,8 +683,7 @@ export default (device, platform) => {
 				log.easyDebug(device.name, '(SET) - Fan Swing:', state)
 				device.state.verticalSwing = state
 				device.state.active = true
-				log.easyDebug(device.name, '(SET) - Mode to: FAN')
-				device.state.mode = 'FAN'
+				keepOrRestoreRunningMode(device)
 
 				callback()
 			},
@@ -678,8 +692,7 @@ export default (device, platform) => {
 				log.easyDebug(device.name, '(SET) - Fan Rotation Speed:', speed + '%')
 				device.state.fanSpeed = speed
 				device.state.active = true
-				log.easyDebug(device.name, '(SET) - Mode to: FAN')
-				device.state.mode = 'FAN'
+				keepOrRestoreRunningMode(device)
 
 				callback()
 			},

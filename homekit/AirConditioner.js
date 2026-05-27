@@ -719,8 +719,16 @@ class AirConditioner {
 				}
 
 				if (this.FanService) {
-					// turn off FanService
-					this.Utils.updateValue('FanService', 'Active', 0)
+					// Fan accessory acts as the fan-speed control for the running mode, so keep it on
+					this.Utils.updateValue('FanService', 'Active', 1)
+
+					if (!this.disableVerticalSwing && this.capabilities.FAN.verticalSwing) {
+						this.Utils.updateValue('FanService', 'SwingMode', Characteristic.SwingMode[this.state.verticalSwing])
+					}
+
+					if (this.capabilities.FAN.fanSpeeds) {
+						this.Utils.updateValue('FanService', 'RotationSpeed', this.state.fanSpeed)
+					}
 				}
 
 				break
