@@ -764,6 +764,39 @@ class AirConditioner {
 				break
 
 			case 'DRY':
+				if (this.autoToDry && this.HeaterCoolerService) {
+					// autoToDry: present DRY as AUTO on the HeaterCooler tile
+					this.Utils.updateValue('HeaterCoolerService', 'Active', 1)
+					this.Utils.updateValue('HeaterCoolerService', 'HeatingThresholdTemperature', this.state.targetTemperature)
+					this.Utils.updateValue('HeaterCoolerService', 'CoolingThresholdTemperature', this.state.targetTemperature)
+
+					if (!this.disableVerticalSwing && this.capabilities.DRY.verticalSwing) {
+						this.Utils.updateValue('HeaterCoolerService', 'SwingMode', Characteristic.SwingMode[this.state.verticalSwing])
+					}
+
+					if (this.capabilities.DRY.fanSpeeds) {
+						this.Utils.updateValue('HeaterCoolerService', 'RotationSpeed', this.state.fanSpeed)
+					}
+
+					if (this.sensiboFilterValuesExist) {
+						this.Utils.updateValue('HeaterCoolerService', 'FilterChangeIndication', Characteristic.FilterChangeIndication[this.state.filterChange])
+						this.Utils.updateValue('HeaterCoolerService', 'FilterLifeLevel', this.state.filterLifeLevel)
+					}
+
+					this.Utils.updateValue('HeaterCoolerService', 'TargetHeaterCoolerState', Characteristic.TargetHeaterCoolerState.AUTO)
+					if (this.state.currentTemperature > this.state.targetTemperature) {
+						this.Utils.updateValue('HeaterCoolerService', 'CurrentHeaterCoolerState', Characteristic.CurrentHeaterCoolerState.COOLING)
+					} else {
+						this.Utils.updateValue('HeaterCoolerService', 'CurrentHeaterCoolerState', Characteristic.CurrentHeaterCoolerState.HEATING)
+					}
+
+					if (this.FanService) {
+						this.Utils.updateValue('FanService', 'Active', 0)
+					}
+
+					break
+				}
+
 				if (this.DryService) {
 					// turn on DryService
 					this.Utils.updateValue('DryService', 'Active', 1)

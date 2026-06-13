@@ -143,7 +143,7 @@ export default (device, platform) => {
 				const active = device.state.active
 				const mode = device.state.mode
 
-				if (!active || mode === 'FAN' || mode === 'DRY') {
+				if (!active || mode === 'FAN' || (mode === 'DRY' && !device.autoToDry)) {
 					log.easyDebug(device.name, '(GET) - AC Active State: false')
 
 					callback(null, 0)
